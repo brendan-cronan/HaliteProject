@@ -1,6 +1,14 @@
 #!/usr/bin/env python3
 # Python 3.6
 
+"""
+
+This is not meant to be edited.  Simply an easy thing to test bots against.
+
+"""
+
+
+
 # Import the Halite SDK, which will let you interact with the game.
 import hlt
 
