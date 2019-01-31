@@ -15,19 +15,22 @@ import logging
 
 
 """
-    Algorithm for choosing the proper mining locationself.
+    Algorithm for choosing the proper mining location.
     To be executed every turn and by definition, executes with every ship in mind.
 """
-def choose_target_mine(game_map,ship_locations):
+def choose_target_mine(game,ship_locations):
+    me = game.me
+    game_map = game.game_map
+    inspired_tiles = inspired_grid(game_map)
     for x in range(0, constants.WIDTH):
         for y in range(0, constants.HEIGHT):
             pos = Position(x,y)
             loc = game_map[pos]
 
             #these are values that only need to be calculated once per tile.
-            dist_to_yard = dist_to_shipyard(pos)
-            dist_to_closest_dropoff = find_nearest_dropoff(pos)
-            halite_amt = loc.halite_amount;
+            dist_to_yard = dist_to_shipyard(game_map,pos)
+            dist_to_closest_dropoff = find_nearest_dropoff(game_map,pos)
+            halite_amt = loc.halite_amount
 
 
             #creates a dictionary to store the ship id and its current best score.
@@ -39,7 +42,7 @@ def choose_target_mine(game_map,ship_locations):
 
             #calculating the score for this tile for each ship.
             for ship in me.get_ships():
-                score = mine_scoring_function(loc, ship, dist_to_yard, halite_amt)
+                score = mine_scoring_function(game_map,loc, ship, dist_to_yard, halite_amt)
                 if score > best_score[ship.id]:
                     best_score[ship.id] = score
 
@@ -55,7 +58,7 @@ def choose_target_mine(game_map,ship_locations):
 Given a position, dist from shipyard, dist to ship, halite amount,
 returns a "score"
 """
-def mine_scoring_function( pos, ship, yard_dist, halite_amt):
+def mine_scoring_function(game_map, pos, ship, yard_dist, halite_amt):
     ship_dist = game_map.calculate_distance(pos, ship.position)
 
 
@@ -64,20 +67,23 @@ def mine_scoring_function( pos, ship, yard_dist, halite_amt):
 
 
 """ Returns the distance from given pos to the shipyard for ease of use. """
-def dist_to_shipyard(pos):
+def dist_to_shipyard(game_map, pos):
     return game_map.calculate_distance(pos, me.shipyard.position)
 
 """
-Code for finding the closest dropoff point.  Not relevant until dropoffs are implemented.
+Code for finding the closest dropoff point.  Not relevant until dropoffs are placed.
+Returns the distance to shipyard if no dropoffs are found
 """
-def find_nearest_dropoff(pos):
+def find_nearest_dropoff(game_map,pos):
     if me.get_dropoffs() = []:
-        return None
-    dist_to_closest_dropoff = 999
+        return dist_to_shipyard(game_map,pos)
+
+    dist_to_closest_dropoff = dist_to_shipyard(game_map,pos)
+
     for dropoff in me.get_dropoffs():
-        dist = game_map.calculate_distance(pos, dropoff)
+        dist = game_map.calculate_distance(pos, dropoff.position)
         if dist < dist_to_closest_dropoff:
-                dist_to_closest_dropoff =dist
+                dist_to_closest_dropoff = dist
         if dist_to_closest_dropoff == 999:
             return None
 
@@ -89,11 +95,33 @@ def find_nearest_dropoff(pos):
 
 
 """
-Function to determine if a certain space is currently inspired.
-Returns a boolean value indicating if it is inspired or not.
+Function to determine if What spaces on the board are inspired.
+Should be calculated once per turn.
+Return:
+    2D Array of boolean True/False values indicating whether a position is inspired or not.
+    ex.
+        [
+            [True, True, False, False False]
+            [True, True, False, False False]
+            [True, True, False, False False]
+            [True, True, False, False False]
+        ]
 """
-def is_inspired(pos):
+def inspired_grid(game_map):
+    inspiration = [constants.HEIGHT][constants.WIDTH]
 
+    for x in range(constants.WIDTH):
+        for y in range(constants.HEIGHT):
+
+            pos = Position(x,y)
+            enemies = 0;
+
+            if check_adjacent_enemies(game_map,pos.x,pos.y, constants.INSPIRATION_RADIUS) >= Constants.INSPIRATION_SHIP_COUNT
+                inspiration[pos.x][pos.y] = True
+            else:
+                inspiration[pos.x][pos.y] = False
+
+    return inspiration;
 
 
 
@@ -112,7 +140,7 @@ def find_cluster(game_map,threshold):
 
             if game_map[pos].halite_amount >= 500:
 
-                adjacent_positions = check_adjacent(x,y)
+                adjacent_positions = check_adjacent(game_map,x,y,1)
                 total_surrounding = 0
                 # sum up all of the surrounding halite.
                 for position in adjacent_positions:
@@ -128,15 +156,61 @@ def find_cluster(game_map,threshold):
 """
 Return:
 [
-    [Position, halite_amount]
+    Position,
+    Position
+]
+"""
+def check_adjacent(game_map,x,y,radius):
+    adjacent_positions=[]
+    for row in range(-radius, radius):
+        for col in range(-radius, radius):
+            pos = Position(x,y).directional_offset(row,col)
+            adjacent_positions.append(pos)
+
+    return adjacent_positions
+
+
+"""
+Return:
+[
+    [Position, halite_amount],
     [Position, halite_amount]
 ]
 """
-def check_adjacent(x,y):
+def check_adjacent_halite(game_map,x,y,radius):
+    adj = check_adjacent(game_map,x,y,radius)
+    halite=[]
+    for pos in adj:
+        halite.append( [ pos, game_map[pos].halite_amount ] )
+
+    return halite
+
+"""
+Return:
+    Number of enemies within radius of x,y position.
+"""
+def check_adjacent_enemies(game_map,x,y,radius):
+    adj = check_adjacent(game_map,x,y,radius)
+    num_enemies = 0
+    for pos in adj:
+        if pos.ship.owner != game.me:
+            num_enemies+=1
+    return num_enemies
+
+
 """
 Return:
 [
     Position, amount
 ]
 """
-def highest_adjacent(x,y):
+def highest_adjacent(game_map,x,y):
+    adjacent_positions = check_adjacent_halite(game_map,x,y,1)
+    position = adjacent_positions[0][0]
+    highest_halite = adjacent_positions[0][1];
+    for pos in adjacent_positions:
+        if pos[1] > highest:
+            position = pos[0]
+            highest = pos[1]
+
+    return [position, highest]
